@@ -46,7 +46,7 @@ Typical operation timings (TypeScript implementation):
 | Operation | Network Time | Processing Time | Total |
 |-----------|-------------|-----------------|-------|
 | get_all_items | 50-200ms | <5ms | 55-205ms |
-| get_build_console | 100-500ms | <10ms | 110-510ms |
+| get_build_console_output | 100-500ms | <10ms | 110-510ms |
 | build_item | 50-150ms | <5ms | 55-155ms |
 
 The processing time (where Rust would excel) is < 5% of total time. Network latency dominates.

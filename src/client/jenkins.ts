@@ -15,7 +15,7 @@ export class JenkinsClient {
 
     const axiosConfig: AxiosRequestConfig = {
       baseURL: config.url,
-      timeout: (config.timeout || 5) * 1000,
+      timeout: (config.timeout || 5) * 1000, // Convert seconds to milliseconds
       headers: {
         'Content-Type': 'application/json',
       },

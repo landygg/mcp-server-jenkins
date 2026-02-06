@@ -19,11 +19,12 @@ import { tools, executeTool } from './tools/index.js';
  */
 
 // Read configuration from environment variables
+// Note: JENKINS_TIMEOUT is in seconds and will be converted to milliseconds
 const config: JenkinsConfig = {
   url: process.env.JENKINS_URL || '',
   username: process.env.JENKINS_USERNAME,
   password: process.env.JENKINS_PASSWORD || process.env.JENKINS_API_TOKEN,
-  timeout: parseInt(process.env.JENKINS_TIMEOUT || '5'),
+  timeout: parseInt(process.env.JENKINS_TIMEOUT || '5'), // seconds
   verifySSL: process.env.JENKINS_VERIFY_SSL !== 'false',
 };
 
