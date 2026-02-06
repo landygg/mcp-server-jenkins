@@ -105,15 +105,17 @@ The Jenkins MCP Server is a standalone Node.js application that implements the M
 - HTTP communication with Jenkins
 - API endpoint construction
 - Request/response handling
-- Error handling and retries
+- Error handling
 - Authentication management
+- CSRF protection via crumb management
 
 **Features:**
-- Connection pooling (via Axios)
+- Connection pooling with keep-alive
 - Configurable timeouts
 - SSL verification control
 - Basic authentication support
 - URL encoding for job names with folders
+- CSRF crumb support for POST requests
 
 **API Coverage:**
 - `/api/json` - Server and job information

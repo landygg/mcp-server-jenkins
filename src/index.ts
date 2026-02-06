@@ -4,14 +4,14 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
-  ListToolsRequestSchema,
   ErrorCode,
+  ListToolsRequestSchema,
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 
 import { JenkinsClient } from './client/jenkins.js';
-import { JenkinsConfig } from './types/jenkins.js';
-import { tools, executeTool } from './tools/index.js';
+import { executeTool, tools } from './tools/index.js';
+import type { JenkinsConfig } from './types/jenkins.js';
 
 /**
  * MCP Server for Jenkins
@@ -24,7 +24,7 @@ const config: JenkinsConfig = {
   url: process.env.JENKINS_URL || '',
   username: process.env.JENKINS_USERNAME,
   password: process.env.JENKINS_PASSWORD || process.env.JENKINS_API_TOKEN,
-  timeout: parseInt(process.env.JENKINS_TIMEOUT || '5'), // seconds
+  timeout: parseInt(process.env.JENKINS_TIMEOUT || '5', 10), // seconds
   verifySSL: process.env.JENKINS_VERIFY_SSL !== 'false',
 };
 
@@ -74,7 +74,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     const result = await executeTool(jenkinsClient, name, args || {});
-    
+
     return {
       content: [
         {
@@ -84,15 +84,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       ],
     };
   } catch (error) {
+    // Re-throw if already an McpError
+    if (error instanceof McpError) {
+      throw error;
+    }
+
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
+
     // Log error for debugging
     console.error(`Error executing tool ${name}:`, errorMessage);
-    
-    throw new McpError(
-      ErrorCode.InternalError,
-      `Failed to execute tool ${name}: ${errorMessage}`
-    );
+
+    // Map specific error types to appropriate error codes
+    if (errorMessage.includes('Unknown tool')) {
+      throw new McpError(ErrorCode.MethodNotFound, errorMessage);
+    }
+
+    if (errorMessage.includes('invalid') || errorMessage.includes('Invalid')) {
+      throw new McpError(ErrorCode.InvalidParams, errorMessage);
+    }
+
+    throw new McpError(ErrorCode.InternalError, `Failed to execute tool ${name}: ${errorMessage}`);
   }
 });
 
@@ -101,9 +112,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
  */
 async function main() {
   const transport = new StdioServerTransport();
-  
+
   await server.connect(transport);
-  
+
   // Log to stderr (stdout is used for MCP protocol)
   console.error('Jenkins MCP Server started');
   console.error(`Connected to Jenkins: ${config.url}`);

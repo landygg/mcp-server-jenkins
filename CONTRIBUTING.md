@@ -62,8 +62,7 @@ mcp-server-jenkins/
 3. **Build and Test**
    ```bash
    npm run build
-   npm run lint
-   npm run format
+   npm run check
    ```
 
 4. **Commit Your Changes**
@@ -88,8 +87,7 @@ mcp-server-jenkins/
 ### Code Style
 
 - **TypeScript**: Strict mode enabled
-- **Formatting**: Prettier (2 spaces, single quotes)
-- **Linting**: ESLint with TypeScript rules
+- **Formatting & Linting**: Biome (2 spaces, single quotes)
 - **Naming**: camelCase for variables/functions, PascalCase for classes/interfaces
 
 ### Adding New Tools
@@ -146,8 +144,7 @@ Future: We plan to add automated tests with mocked Jenkins API.
 ### Before Submitting
 
 - [ ] Code builds successfully (`npm run build`)
-- [ ] No linting errors (`npm run lint`)
-- [ ] Code is formatted (`npm run format`)
+- [ ] No linting/formatting errors (`npm run check`)
 - [ ] README updated if adding features
 - [ ] Tested with real Jenkins instance
 - [ ] No credentials in code

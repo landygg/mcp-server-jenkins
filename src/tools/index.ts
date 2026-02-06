@@ -1,4 +1,5 @@
-import { JenkinsClient } from '../client/jenkins.js';
+import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
+import type { JenkinsClient } from '../client/jenkins.js';
 
 /**
  * Tool definitions for MCP server
@@ -238,56 +239,56 @@ export async function executeTool(
   switch (toolName) {
     case 'get_all_items':
       return await client.getAllItems();
-    
+
     case 'get_item':
       return await client.getItem(args.fullName);
-    
+
     case 'get_item_config':
       return await client.getItemConfig(args.fullName);
-    
+
     case 'query_items':
       return await client.queryItems({
         classPattern: args.classPattern,
         fullNamePattern: args.fullNamePattern,
         colorPattern: args.colorPattern,
       });
-    
+
     case 'build_item':
       return await client.buildItem(args.fullName, args.parameters);
-    
+
     case 'get_all_nodes':
       return await client.getAllNodes();
-    
+
     case 'get_node':
       return await client.getNode(args.nodeName);
-    
+
     case 'get_node_config':
       return await client.getNodeConfig(args.nodeName);
-    
+
     case 'get_all_queue_items':
       return await client.getAllQueueItems();
-    
+
     case 'get_queue_item':
       return await client.getQueueItem(args.queueId);
-    
+
     case 'cancel_queue_item':
       await client.cancelQueueItem(args.queueId);
       return { success: true };
-    
+
     case 'get_build':
       return await client.getBuild(args.fullName, args.buildNumber);
-    
+
     case 'get_build_console_output':
       return await client.getBuildConsoleOutput(args.fullName, args.buildNumber);
-    
+
     case 'get_running_builds':
       return await client.getRunningBuilds();
-    
+
     case 'stop_build':
       await client.stopBuild(args.fullName, args.buildNumber);
       return { success: true };
-    
+
     default:
-      throw new Error(`Unknown tool: ${toolName}`);
+      throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${toolName}`);
   }
 }

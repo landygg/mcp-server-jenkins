@@ -165,11 +165,8 @@ npm run build
 # Watch mode for development
 npm run dev
 
-# Run linter
-npm run lint
-
-# Format code
-npm run format
+# Lint and format code
+npm run check
 ```
 
 ## Security
