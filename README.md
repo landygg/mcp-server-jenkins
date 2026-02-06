@@ -4,6 +4,10 @@
 
 A Model Context Protocol (MCP) server that enables AI-powered interactions with Jenkins CI/CD pipelines in the Zed editor. This extension allows Zed's AI assistant to autonomously interact with your Jenkins server, query jobs, trigger builds, and analyze logs.
 
+## 🚀 Quick Start
+
+**New to this project?** Check out the [Quick Start Guide](QUICKSTART.md) to get running in 5 minutes!
+
 ## Features
 
 - 🔧 **Complete Jenkins API Coverage**: Access jobs, builds, nodes, and queue items
