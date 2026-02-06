@@ -79,7 +79,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(result, null, 2),
+          text: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
         },
       ],
     };
@@ -116,8 +116,21 @@ async function main() {
   await server.connect(transport);
 
   // Log to stderr (stdout is used for MCP protocol)
+  // Sanitize URL to avoid leaking credentials if included in JENKINS_URL
+  let sanitizedUrl = config.url;
+  try {
+    const urlObj = new URL(config.url);
+    if (urlObj.username || urlObj.password) {
+      urlObj.username = '';
+      urlObj.password = '';
+      sanitizedUrl = urlObj.toString();
+    }
+  } catch {
+    // If URL parsing fails, just use the original (likely won't have credentials)
+  }
+
   console.error('Jenkins MCP Server started');
-  console.error(`Connected to Jenkins: ${config.url}`);
+  console.error(`Connected to Jenkins: ${sanitizedUrl}`);
   console.error(`Available tools: ${tools.length}`);
 }
 

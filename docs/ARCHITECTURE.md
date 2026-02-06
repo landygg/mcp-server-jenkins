@@ -309,8 +309,7 @@ npm run build  # TypeScript compilation
 ### Development
 - `typescript` - Type checking & compilation
 - `@types/node` - Node.js type definitions
-- `eslint` - Code linting
-- `prettier` - Code formatting
+- `@biomejs/biome` - Code linting & formatting
 
 ## Extension Points
 

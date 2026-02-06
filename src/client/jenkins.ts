@@ -76,7 +76,26 @@ export class JenkinsClient {
       return this.crumbCache;
     } catch (error) {
       // If crumb endpoint doesn't exist, Jenkins may not have CSRF protection enabled
-      console.error('Failed to fetch Jenkins crumb (CSRF may not be enabled):', error);
+      // Cache a sentinel value to avoid repeated failed requests
+      this.crumbCache = null;
+
+      // Log sanitized error to avoid leaking credentials
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const statusText = error.response?.statusText;
+        const code = error.code;
+        console.error('Failed to fetch Jenkins crumb (CSRF may not be enabled):', {
+          status,
+          statusText,
+          code,
+          message: error.message,
+        });
+      } else {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('Failed to fetch Jenkins crumb (CSRF may not be enabled):', {
+          message,
+        });
+      }
       return null;
     }
   }
