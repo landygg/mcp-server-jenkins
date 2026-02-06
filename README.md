@@ -172,8 +172,9 @@ npm run format
 
 - **Credentials**: Never commit credentials to the repository. Use environment variables.
 - **API Tokens**: Use Jenkins API tokens instead of passwords for better security.
-- **SSL Verification**: Keep SSL verification enabled in production (default).
+- **SSL Verification**: Keep SSL verification enabled in production (default: true). Only disable for development with self-signed certificates using `JENKINS_VERIFY_SSL=false`.
 - **Read-Only Mode**: Consider using a Jenkins user with read-only permissions for safety.
+- **Network Security**: The server communicates with Jenkins over HTTPS with certificate validation by default.
 
 ## Contributing
 

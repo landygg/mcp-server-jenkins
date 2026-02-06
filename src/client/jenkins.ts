@@ -30,6 +30,8 @@ export class JenkinsClient {
     }
 
     // Handle SSL verification
+    // Security Note: SSL verification can be disabled for development or self-signed certificates
+    // This is opt-in via JENKINS_VERIFY_SSL=false and defaults to true (secure)
     if (config.verifySSL === false) {
       axiosConfig.httpsAgent = new https.Agent({
         rejectUnauthorized: false,
