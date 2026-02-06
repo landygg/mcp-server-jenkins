@@ -1,0 +1,11 @@
+id = "jenkins"
+name = "Jenkins MCP Server"
+description = "Model Context Protocol server for Jenkins CI/CD integration. Enables AI-powered interactions with Jenkins jobs, builds, and logs."
+version = "0.1.0"
+schema_version = 1
+authors = ["landygg"]
+repository = "https://github.com/landygg/mcp-server-jenkins"
+
+[context_servers.jenkins]
+command = "node"
+args = ["dist/index.js"]
