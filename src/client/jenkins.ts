@@ -15,7 +15,7 @@ import type {
  */
 export class JenkinsClient {
   private client: AxiosInstance;
-  private crumbCache: { crumb: string; field: string } | null = null;
+  private crumbCache: { crumb: string; field: string } | null | undefined = undefined;
 
   constructor(config: JenkinsConfig) {
     const axiosConfig: AxiosRequestConfig = {
@@ -63,7 +63,8 @@ export class JenkinsClient {
    * Caches the crumb to avoid repeated requests
    */
   private async getCrumb(): Promise<{ crumb: string; field: string } | null> {
-    if (this.crumbCache) {
+    // Return cached result if already fetched (either valid crumb or null for "not available")
+    if (this.crumbCache !== undefined) {
       return this.crumbCache;
     }
 
@@ -76,7 +77,7 @@ export class JenkinsClient {
       return this.crumbCache;
     } catch (error) {
       // If crumb endpoint doesn't exist, Jenkins may not have CSRF protection enabled
-      // Cache a sentinel value to avoid repeated failed requests
+      // Cache null as sentinel value to avoid repeated failed requests
       this.crumbCache = null;
 
       // Log sanitized error to avoid leaking credentials
@@ -184,8 +185,13 @@ export class JenkinsClient {
       if (fullNameRegex && !fullNameRegex.test(item.fullName)) {
         return false;
       }
-      if (colorRegex && item.color && !colorRegex.test(item.color)) {
-        return false;
+      if (colorRegex) {
+        if (!item.color) {
+          return false;
+        }
+        if (!colorRegex.test(item.color)) {
+          return false;
+        }
       }
       return true;
     });
