@@ -218,7 +218,8 @@ Release Please determines version bumps based on commit prefixes:
 - `fix:` → Patch release (0.0.x)
 - `feat:` → Minor release (0.x.0)
 - `feat!:` or `BREAKING CHANGE:` → Major release (x.0.0)
-- `docs:`, `chore:`, etc. → Included in release notes but don't trigger releases alone
+- `docs:` → Included in release notes but doesn't trigger a release alone
+- `chore:`, `ci:`, `build:`, `test:`, `refactor:`, `style:` → Do not trigger releases and are omitted from `CHANGELOG.md` by the Release Please configuration
 
 ### Commit Message Examples
 
