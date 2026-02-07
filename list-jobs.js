@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Simple script to list all Jenkins jobs
+ * Simple script to list all Jenkins jobs.
  * Run: node list-jobs.js
  */
 
@@ -9,48 +9,80 @@ import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { JenkinsClient } from './dist/client/jenkins.js';
+import { loadJenkinsConfig, sanitizeUrl } from './dist/config/jenkins-config.js';
 
-// Load environment variables from .env file manually
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const envPath = join(__dirname, '.env');
+/**
+ * Load environment variables from a local .env file (if present).
+ * This keeps the script self-contained without external deps.
+ * @returns {void}
+ */
+function loadDotEnv() {
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const envPath = join(__dirname, '.env');
 
-try {
-  const envFile = readFileSync(envPath, 'utf-8');
-  envFile.split('\n').forEach((line) => {
-    const match = line.match(/^([^#=]+)=(.*)$/);
-    if (match) {
-      const key = match[1].trim();
-      const value = match[2].trim();
-      if (!process.env[key]) {
-        process.env[key] = value;
+  try {
+    const envFile = readFileSync(envPath, 'utf-8');
+    envFile.split('\n').forEach((line) => {
+      const match = line.match(/^([^#=]+)=(.*)$/);
+      if (match) {
+        const key = match[1].trim();
+        const value = match[2].trim();
+        if (!process.env[key]) {
+          process.env[key] = value;
+        }
       }
+    });
+    console.log('✓ Loaded configuration from .env file\n');
+  } catch (error) {
+    const code = error?.code;
+    if (code !== 'ENOENT') {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('⚠️ Failed to load .env file:', message);
     }
-  });
-  console.log('✓ Loaded configuration from .env file\n');
-} catch (error) {
-  console.log('ℹ Using environment variables (no .env file found)\n');
-  console.error("It's running the folloeing error: ", error.message);
+    console.log('ℹ Using environment variables (no .env file found)\n');
+  }
 }
 
-const config = {
-  url: process.env.JENKINS_URL || '',
-  username: process.env.JENKINS_USERNAME,
-  password: process.env.JENKINS_PASSWORD || process.env.JENKINS_API_TOKEN,
-  timeout: parseInt(process.env.JENKINS_TIMEOUT || '60', 10),
-  verifySSL: process.env.JENKINS_VERIFY_SSL !== 'false',
-};
+/**
+ * Render a status icon for a Jenkins job color.
+ * @param {string | undefined} color - Jenkins color string.
+ * @returns {string} Emoji icon.
+ */
+function getStatusIcon(color) {
+  if (!color) return '⚪';
 
-if (!config.url) {
-  console.error('❌ Error: JENKINS_URL environment variable is required');
-  console.error('\nPlease set it in .env file or export it:');
-  console.error('  export JENKINS_URL="https://your-jenkins-server.com"');
-  process.exit(1);
+  const iconMap = {
+    blue: '🟢', // Success
+    blue_anime: '🔵', // Building (successful)
+    red: '🔴', // Failed
+    red_anime: '🔴', // Building (previously failed)
+    yellow: '🟡', // Unstable
+    yellow_anime: '🟡', // Building (unstable)
+    grey: '⚪', // Not built
+    grey_anime: '⚪', // Building (never built)
+    disabled: '⚫', // Disabled
+    aborted: '🟠', // Aborted
+    notbuilt: '⚪', // Not built
+  };
+
+  return iconMap[color] || '⚪';
 }
 
+
+
+/**
+ * Fetch and print Jenkins jobs.
+ * @returns {Promise<void>}
+ */
 async function listJobs() {
   try {
+    if (!process.env.JENKINS_TIMEOUT) {
+      process.env.JENKINS_TIMEOUT = '60';
+    }
+    const config = loadJenkinsConfig();
     const client = new JenkinsClient(config);
-    console.log(`🔍 Connecting to Jenkins: ${config.url}`);
+
+    console.log(`🔍 Connecting to Jenkins: ${sanitizeUrl(config.url)}`);
     console.log('📡 Fetching all jobs...\n');
 
     const items = await client.getAllItems();
@@ -103,13 +135,17 @@ async function listJobs() {
       console.log(`  • ${type}: ${typeItems.length}`);
     }
   } catch (error) {
-    console.error('\n❌ Error fetching Jenkins jobs:', error.message);
+    const message = error instanceof Error ? error.message : String(error);
+    const code = error?.code;
+    const status = error?.response?.status;
 
-    if (error.code === 'ECONNREFUSED') {
+    console.error('\n❌ Error fetching Jenkins jobs:', message);
+
+    if (code === 'ECONNREFUSED') {
       console.error('\n💡 Tip: Check if Jenkins URL is correct and accessible');
-    } else if (error.response?.status === 401) {
+    } else if (status === 401) {
       console.error('\n💡 Tip: Check your Jenkins credentials (username/password)');
-    } else if (error.response?.status === 403) {
+    } else if (status === 403) {
       console.error('\n💡 Tip: Your user may not have permission to access Jenkins API');
     }
 
@@ -117,24 +153,5 @@ async function listJobs() {
   }
 }
 
-function getStatusIcon(color) {
-  if (!color) return '⚪';
-
-  const iconMap = {
-    blue: '🟢', // Success
-    blue_anime: '🔵', // Building (successful)
-    red: '🔴', // Failed
-    red_anime: '🔴', // Building (previously failed)
-    yellow: '🟡', // Unstable
-    yellow_anime: '🟡', // Building (unstable)
-    grey: '⚪', // Not built
-    grey_anime: '⚪', // Building (never built)
-    disabled: '⚫', // Disabled
-    aborted: '🟠', // Aborted
-    notbuilt: '⚪', // Not built
-  };
-
-  return iconMap[color] || '⚪';
-}
-
+loadDotEnv();
 listJobs();

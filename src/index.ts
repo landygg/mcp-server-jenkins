@@ -1,140 +1,50 @@
 #!/usr/bin/env node
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ErrorCode,
-  ListToolsRequestSchema,
-  McpError,
-} from '@modelcontextprotocol/sdk/types.js';
-
 import { JenkinsClient } from './client/jenkins.js';
-import { executeTool, tools } from './tools/index.js';
+import { loadJenkinsConfig } from './config/jenkins-config.js';
+import { startMcpServer } from './server/mcp-server.js';
 import type { JenkinsConfig } from './types/jenkins.js';
+import { createLogger } from './utils/logger.js';
 
 /**
  * MCP Server for Jenkins
  * Provides AI-powered interactions with Jenkins CI/CD
  */
+async function main(): Promise<void> {
+  const logger = createLogger('jenkins-mcp-server');
 
-// Read configuration from environment variables
-// Note: JENKINS_TIMEOUT is in seconds and will be converted to milliseconds
-const config: JenkinsConfig = {
-  url: process.env.JENKINS_URL || '',
-  username: process.env.JENKINS_USERNAME,
-  password: process.env.JENKINS_PASSWORD || process.env.JENKINS_API_TOKEN,
-  timeout: parseInt(process.env.JENKINS_TIMEOUT || '5', 10), // seconds
-  verifySSL: process.env.JENKINS_VERIFY_SSL !== 'false',
-};
-
-// Validate configuration
-if (!config.url) {
-  console.error('Error: JENKINS_URL environment variable is required');
-  process.exit(1);
-}
-
-// Create Jenkins client
-let jenkinsClient: JenkinsClient;
-
-try {
-  jenkinsClient = new JenkinsClient(config);
-} catch (error) {
-  console.error('Error: Failed to initialize Jenkins client:', error);
-  process.exit(1);
-}
-
-// Create MCP server
-const server = new Server(
-  {
-    name: 'jenkins-mcp-server',
-    version: '0.1.0',
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
-  }
-);
-
-/**
- * Handler for listing available tools
- */
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools,
-  };
-});
-
-/**
- * Handler for tool execution
- */
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
+  let config: JenkinsConfig;
   try {
-    const result = await executeTool(jenkinsClient, name, args || {});
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
-        },
-      ],
-    };
+    config = loadJenkinsConfig();
   } catch (error) {
-    // Re-throw if already an McpError
-    if (error instanceof McpError) {
-      throw error;
-    }
-
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-    // Log error for debugging
-    console.error(`Error executing tool ${name}:`, errorMessage);
-
-    // Map specific error types to appropriate error codes
-    if (errorMessage.includes('Unknown tool')) {
-      throw new McpError(ErrorCode.MethodNotFound, errorMessage);
-    }
-
-    if (errorMessage.includes('invalid') || errorMessage.includes('Invalid')) {
-      throw new McpError(ErrorCode.InvalidParams, errorMessage);
-    }
-
-    throw new McpError(ErrorCode.InternalError, `Failed to execute tool ${name}: ${errorMessage}`);
+    const message = error instanceof Error ? error.message : 'Unknown configuration error';
+    logger.error('Configuration error', { message });
+    process.exit(1);
+    return;
   }
-});
 
-/**
- * Start the server
- */
-async function main() {
-  const transport = new StdioServerTransport();
-
-  await server.connect(transport);
-
-  // Log to stderr (stdout is used for MCP protocol)
-  // Sanitize URL to avoid leaking credentials if included in JENKINS_URL
-  let sanitizedUrl = config.url;
+  let client: JenkinsClient;
   try {
-    const urlObj = new URL(config.url);
-    if (urlObj.username || urlObj.password) {
-      urlObj.username = '';
-      urlObj.password = '';
-      sanitizedUrl = urlObj.toString();
-    }
-  } catch {
-    // If URL parsing fails, just use the original (likely won't have credentials)
+    client = new JenkinsClient(config);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown Jenkins client error';
+    logger.error('Failed to initialize Jenkins client', { message });
+    process.exit(1);
+    return;
   }
 
-  console.error('Jenkins MCP Server started');
-  console.error(`Connected to Jenkins: ${sanitizedUrl}`);
-  console.error(`Available tools: ${tools.length}`);
+  try {
+    await startMcpServer({
+      config,
+      client,
+      logger,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown startup error';
+    logger.error('Fatal error during startup', { message });
+    process.exit(1);
+    return;
+  }
 }
 
-main().catch((error) => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});
+main();
