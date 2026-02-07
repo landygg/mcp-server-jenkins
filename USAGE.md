@@ -10,7 +10,7 @@
    ```
 
 2. **Configure Jenkins Credentials**
-   
+
    Create a `.env` file or set environment variables:
    ```bash
    export JENKINS_URL="https://jenkins.example.com"
@@ -19,7 +19,7 @@
    ```
 
 3. **Configure Zed**
-   
+
    Add to `~/.config/zed/settings.json`:
    ```json
    {

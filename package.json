@@ -8,6 +8,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
+    "list-jobs": "node list-jobs.js",
     "lint": "biome lint src",
     "format": "biome format --write src",
     "check": "biome check --write src"
