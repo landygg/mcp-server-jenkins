@@ -2,6 +2,7 @@ import type { AxiosRequestConfig } from 'axios';
 import type { JenkinsNode } from '../../types/jenkins.js';
 import type { JenkinsHttpClient } from '../http-client.js';
 import { nodeConfigPath, nodePath } from '../paths.js';
+import { unwrapList, withAcceptHeader } from './api-utils.js';
 
 /**
  * Wrapper around Jenkins node APIs.
@@ -25,7 +26,7 @@ export class NodesApi {
       '/computer/api/json?tree=computer[displayName,description,numExecutors,offline,temporarilyOffline]',
       config
     );
-    return response.data.computer || [];
+    return unwrapList(response.data.computer);
   }
 
   /**
@@ -46,13 +47,10 @@ export class NodesApi {
    * @returns {Promise<string>} XML config.
    */
   async getNodeConfig(nodeName: string, config: AxiosRequestConfig = {}): Promise<string> {
-    const response = await this.client.get<string>(nodeConfigPath(nodeName), {
-      ...config,
-      headers: {
-        Accept: 'application/xml',
-        ...(config.headers ?? {}),
-      },
-    });
+    const response = await this.client.get<string>(
+      nodeConfigPath(nodeName),
+      withAcceptHeader(config, 'application/xml')
+    );
     return response.data;
   }
 }

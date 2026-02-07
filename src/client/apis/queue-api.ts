@@ -2,6 +2,7 @@ import type { AxiosRequestConfig } from 'axios';
 import type { JenkinsQueueItem } from '../../types/jenkins.js';
 import type { JenkinsHttpClient } from '../http-client.js';
 import { queueCancelPath, queueItemPath } from '../paths.js';
+import { applyCrumbHeaders, unwrapList } from './api-utils.js';
 
 /**
  * Options for Queue API helpers.
@@ -38,7 +39,7 @@ export class QueueApi {
       '/queue/api/json?tree=items[id,task[name,url],why,blocked,buildable,stuck]',
       config
     );
-    return response.data.items || [];
+    return unwrapList(response.data.items);
   }
 
   /**
@@ -59,12 +60,7 @@ export class QueueApi {
    * @returns {Promise<void>} Resolves when canceled.
    */
   async cancelQueueItem(queueId: number, config: AxiosRequestConfig = {}): Promise<void> {
-    const requestConfig = await this.applyCrumbHeaders(config);
+    const requestConfig = await applyCrumbHeaders(config, this.addCrumbHeaders);
     await this.client.post(queueCancelPath(queueId), {}, requestConfig);
-  }
-
-  private async applyCrumbHeaders(config: AxiosRequestConfig): Promise<AxiosRequestConfig> {
-    if (!this.addCrumbHeaders) return config;
-    return await this.addCrumbHeaders(config);
   }
 }

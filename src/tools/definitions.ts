@@ -8,7 +8,7 @@ export interface ToolDefinition {
   description: string;
   inputSchema: {
     type: string;
-    properties: Record<string, { type?: string; description?: string }>; // or Record<string, any> if you want to allow more flexible schemas
+    properties: Record<string, unknown>; // or Record<string, any> if you want to allow more flexible schemas
     required?: string[];
   };
 }

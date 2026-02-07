@@ -1,4 +1,6 @@
 import type { JenkinsClient } from '../../client/jenkins.js';
+import type { JenkinsBuild } from '../../types/jenkins.js';
+import { assertNonEmptyString, assertPositiveInt } from '../../utils/validation.js';
 
 /**
  * Build-related tool handlers.
@@ -15,9 +17,12 @@ export interface BuildArgs {
  * Fetch build details.
  * @param {JenkinsClient} client - Jenkins API client.
  * @param {BuildArgs} args - Tool arguments.
- * @returns {Promise<unknown>} Build details.
+ * @returns {Promise<JenkinsBuild>} Build details.
  */
-export async function handleGetBuild(client: JenkinsClient, args: BuildArgs): Promise<unknown> {
+export async function handleGetBuild(
+  client: JenkinsClient,
+  args: BuildArgs
+): Promise<JenkinsBuild> {
   assertNonEmptyString(args?.fullName, 'fullName');
   const buildNumber = assertPositiveInt(args?.buildNumber, 'buildNumber');
   return await client.getBuild(args.fullName, buildNumber);
@@ -41,9 +46,9 @@ export async function handleGetBuildConsoleOutput(
 /**
  * Fetch all running builds.
  * @param {JenkinsClient} client - Jenkins API client.
- * @returns {Promise<unknown[]>} List of running builds.
+ * @returns {Promise<JenkinsBuild[]>} List of running builds.
  */
-export async function handleGetRunningBuilds(client: JenkinsClient): Promise<unknown[]> {
+export async function handleGetRunningBuilds(client: JenkinsClient): Promise<JenkinsBuild[]> {
   return await client.getRunningBuilds();
 }
 
@@ -61,22 +66,4 @@ export async function handleStopBuild(
   const buildNumber = assertPositiveInt(args?.buildNumber, 'buildNumber');
   await client.stopBuild(args.fullName, buildNumber);
   return { success: true };
-}
-
-function assertNonEmptyString(value: unknown, label: string): void {
-  if (typeof value !== 'string' || value.trim() === '') {
-    throw new Error(`${label} is required and must be a non-empty string`);
-  }
-}
-
-function assertPositiveInt(value: unknown, label: string): number {
-  if (
-    typeof value !== 'number' ||
-    !Number.isFinite(value) ||
-    !Number.isInteger(value) ||
-    value <= 0
-  ) {
-    throw new Error(`${label} must be a positive integer`);
-  }
-  return value;
 }

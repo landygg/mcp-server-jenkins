@@ -11,6 +11,7 @@
  */
 
 import type { JenkinsConfig } from '../types/jenkins.js';
+import { parsePositiveInt } from '../utils/validation.js';
 
 /**
  * Load Jenkins configuration from environment variables.
@@ -34,31 +35,6 @@ export function loadJenkinsConfig(env: NodeJS.ProcessEnv = process.env): Jenkins
     timeout: timeoutSeconds,
     verifySSL: env.JENKINS_VERIFY_SSL !== 'false',
   };
-}
-
-/**
- * Parse a positive integer from env with fallback.
- * @param {string | undefined} value - Raw env string.
- * @param {number} fallback - Default value when not provided.
- * @param {string} label - Name for error messages.
- * @returns {number} Validated positive integer.
- * @throws {Error} If provided value is not a positive integer.
- */
-export function parsePositiveInt(
-  value: string | undefined,
-  fallback: number,
-  label: string
-): number {
-  if (value === undefined || value === '') {
-    return fallback;
-  }
-
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error(`${label} must be a positive integer (seconds)`);
-  }
-
-  return parsed;
 }
 
 /**

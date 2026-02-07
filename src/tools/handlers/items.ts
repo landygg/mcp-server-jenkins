@@ -1,4 +1,10 @@
 import type { JenkinsClient } from '../../client/jenkins.js';
+import type { JenkinsItem } from '../../types/jenkins.js';
+import {
+  assertNonEmptyString,
+  isPlainObject,
+  normalizeOptionalString,
+} from '../../utils/validation.js';
 
 /**
  * Item-related tool handlers.
@@ -24,9 +30,9 @@ export interface BuildItemArgs {
 /**
  * Fetch all items (jobs and folders).
  * @param {JenkinsClient} client - Jenkins API client.
- * @returns {Promise<unknown[]>} List of Jenkins items.
+ * @returns {Promise<JenkinsItem[]>} List of Jenkins items.
  */
-export async function handleGetAllItems(client: JenkinsClient): Promise<unknown[]> {
+export async function handleGetAllItems(client: JenkinsClient): Promise<JenkinsItem[]> {
   return await client.getAllItems();
 }
 
@@ -34,9 +40,12 @@ export async function handleGetAllItems(client: JenkinsClient): Promise<unknown[
  * Fetch a single item by full name.
  * @param {JenkinsClient} client - Jenkins API client.
  * @param {GetItemArgs} args - Tool arguments.
- * @returns {Promise<unknown>} Jenkins item details.
+ * @returns {Promise<JenkinsItem>} Jenkins item details.
  */
-export async function handleGetItem(client: JenkinsClient, args: GetItemArgs): Promise<unknown> {
+export async function handleGetItem(
+  client: JenkinsClient,
+  args: GetItemArgs
+): Promise<JenkinsItem> {
   assertNonEmptyString(args?.fullName, 'fullName');
   return await client.getItem(args.fullName);
 }
@@ -88,21 +97,4 @@ export async function handleBuildItem(client: JenkinsClient, args: BuildItemArgs
   }
 
   return await client.buildItem(args.fullName, args?.parameters);
-}
-
-function assertNonEmptyString(value: unknown, label: string): void {
-  if (typeof value !== 'string' || value.trim() === '') {
-    throw new Error(`${label} is required and must be a non-empty string`);
-  }
-}
-
-function normalizeOptionalString(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function isPlainObject(value: unknown): value is Record<string, string> {
-  if (value === null || typeof value !== 'object') return false;
-  return Object.getPrototypeOf(value) === Object.prototype;
 }

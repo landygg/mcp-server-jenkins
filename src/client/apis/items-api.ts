@@ -2,6 +2,7 @@ import type { AxiosRequestConfig } from 'axios';
 import type { JenkinsItem } from '../../types/jenkins.js';
 import type { JenkinsHttpClient } from '../http-client.js';
 import { buildTriggerPath, jobConfigPath, jobPath } from '../paths.js';
+import { applyCrumbHeaders, unwrapList, withAcceptHeader } from './api-utils.js';
 
 /**
  * Item query filters for client-side filtering.
@@ -47,7 +48,7 @@ export class ItemsApi {
       '/api/json?tree=jobs[name,url,color,_class,fullName,buildable]',
       config
     );
-    return response.data.jobs || [];
+    return unwrapList(response.data.jobs);
   }
 
   /**
@@ -71,13 +72,10 @@ export class ItemsApi {
    * @returns {Promise<string>} XML config.
    */
   async getItemConfig(fullName: string, config: AxiosRequestConfig = {}): Promise<string> {
-    const response = await this.client.get<string>(jobConfigPath(fullName), {
-      ...config,
-      headers: {
-        Accept: 'application/xml',
-        ...(config.headers ?? {}),
-      },
-    });
+    const response = await this.client.get<string>(
+      jobConfigPath(fullName),
+      withAcceptHeader(config, 'application/xml')
+    );
     return response.data;
   }
 
@@ -118,10 +116,13 @@ export class ItemsApi {
     config: AxiosRequestConfig = {}
   ): Promise<number> {
     const endpoint = buildTriggerPath(fullName, Boolean(parameters));
-    const requestConfig = await this.applyCrumbHeaders({
-      ...config,
-      params: parameters,
-    });
+    const requestConfig = await applyCrumbHeaders(
+      {
+        ...config,
+        params: parameters,
+      },
+      this.addCrumbHeaders
+    );
 
     const response = await this.client.post(endpoint, parameters || {}, requestConfig);
     const location = response.headers?.location;
@@ -133,11 +134,6 @@ export class ItemsApi {
     }
 
     return parseQueueIdFromLocation(location);
-  }
-
-  private async applyCrumbHeaders(config: AxiosRequestConfig): Promise<AxiosRequestConfig> {
-    if (!this.addCrumbHeaders) return config;
-    return await this.addCrumbHeaders(config);
   }
 }
 

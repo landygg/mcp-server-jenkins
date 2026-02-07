@@ -1,6 +1,8 @@
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import type { JenkinsClient } from '../client/jenkins.js';
+import type { JenkinsBuild, JenkinsItem, JenkinsNode } from '../types/jenkins.js';
 import type { Logger } from '../utils/logger.js';
+import { isPlainObject } from '../utils/validation.js';
 import {
   handleGetBuild,
   handleGetBuildConsoleOutput,
@@ -33,25 +35,33 @@ export type ToolHandler = (
  * Tool registry mapping tool names to handlers.
  */
 const registry: Record<string, ToolHandler> = {
-  get_all_items: async (client) => handleGetAllItems(client),
-  get_item: async (client, args) => handleGetItem(client, args as any),
-  get_item_config: async (client, args) => handleGetItemConfig(client, args as any),
-  query_items: async (client, args) => handleQueryItems(client, args as any),
-  build_item: async (client, args) => handleBuildItem(client, args as any),
+  get_all_items: async (client: JenkinsClient): Promise<JenkinsItem[]> => handleGetAllItems(client),
+  get_item: async (client: JenkinsClient, args): Promise<JenkinsItem> =>
+    handleGetItem(client, args as any),
+  get_item_config: async (client: JenkinsClient, args): Promise<string> =>
+    handleGetItemConfig(client, args as any),
+  query_items: async (client: JenkinsClient, args) => handleQueryItems(client, args as any),
+  build_item: async (client: JenkinsClient, args): Promise<number> =>
+    handleBuildItem(client, args as any),
 
-  get_all_nodes: async (client) => handleGetAllNodes(client),
-  get_node: async (client, args) => handleGetNode(client, args as any),
-  get_node_config: async (client, args) => handleGetNodeConfig(client, args as any),
+  get_all_nodes: async (client: JenkinsClient): Promise<JenkinsNode[]> => handleGetAllNodes(client),
+  get_node: async (client: JenkinsClient, args): Promise<JenkinsNode> =>
+    handleGetNode(client, args as any),
+  get_node_config: async (client: JenkinsClient, args): Promise<string> =>
+    handleGetNodeConfig(client, args as any),
 
-  get_all_queue_items: async (client) => handleGetAllQueueItems(client),
-  get_queue_item: async (client, args) => handleGetQueueItem(client, args as any),
-  cancel_queue_item: async (client, args) => handleCancelQueueItem(client, args as any),
+  get_all_queue_items: async (client: JenkinsClient) => handleGetAllQueueItems(client),
+  get_queue_item: async (client: JenkinsClient, args) => handleGetQueueItem(client, args as any),
+  cancel_queue_item: async (client: JenkinsClient, args) =>
+    handleCancelQueueItem(client, args as any),
 
-  get_build: async (client, args) => handleGetBuild(client, args as any),
-  get_build_console_output: async (client, args) =>
+  get_build: async (client: JenkinsClient, args): Promise<JenkinsBuild> =>
+    handleGetBuild(client, args as any),
+  get_build_console_output: async (client: JenkinsClient, args): Promise<string> =>
     handleGetBuildConsoleOutput(client, args as any),
-  get_running_builds: async (client) => handleGetRunningBuilds(client),
-  stop_build: async (client, args) => handleStopBuild(client, args as any),
+  get_running_builds: async (client: JenkinsClient): Promise<JenkinsBuild[]> =>
+    handleGetRunningBuilds(client),
+  stop_build: async (client: JenkinsClient, args) => handleStopBuild(client, args as any),
 };
 
 /**
@@ -102,9 +112,4 @@ export async function executeTool(
  */
 export function getToolRegistry(): Record<string, ToolHandler> {
   return { ...registry };
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (value === null || typeof value !== 'object') return false;
-  return Object.getPrototypeOf(value) === Object.prototype;
 }

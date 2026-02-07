@@ -1,4 +1,5 @@
 import type { JenkinsClient } from '../../client/jenkins.js';
+import { assertNonNegativeInt } from '../../utils/validation.js';
 
 /**
  * Queue-related tool handlers.
@@ -29,7 +30,7 @@ export async function handleGetQueueItem(
   client: JenkinsClient,
   args: GetQueueItemArgs
 ): Promise<unknown> {
-  const queueId = assertPositiveInt(args?.queueId, 'queueId');
+  const queueId = assertNonNegativeInt(args?.queueId, 'queueId');
   return await client.getQueueItem(queueId);
 }
 
@@ -43,19 +44,7 @@ export async function handleCancelQueueItem(
   client: JenkinsClient,
   args: GetQueueItemArgs
 ): Promise<{ success: true }> {
-  const queueId = assertPositiveInt(args?.queueId, 'queueId');
+  const queueId = assertNonNegativeInt(args?.queueId, 'queueId');
   await client.cancelQueueItem(queueId);
   return { success: true };
-}
-
-function assertPositiveInt(value: unknown, label: string): number {
-  if (
-    typeof value !== 'number' ||
-    !Number.isFinite(value) ||
-    !Number.isInteger(value) ||
-    value < 0
-  ) {
-    throw new Error(`${label} must be a non-negative integer`);
-  }
-  return value;
 }

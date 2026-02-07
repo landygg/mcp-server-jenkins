@@ -2,6 +2,7 @@ import type { AxiosRequestConfig } from 'axios';
 import type { JenkinsBuild, JenkinsItem } from '../../types/jenkins.js';
 import type { JenkinsHttpClient } from '../http-client.js';
 import { buildConsolePath, buildPath, stopBuildPath } from '../paths.js';
+import { applyCrumbHeaders, unwrapList, withAcceptHeader } from './api-utils.js';
 
 /**
  * Options for Builds API helpers.
@@ -59,13 +60,10 @@ export class BuildsApi {
     buildNumber: number,
     config: AxiosRequestConfig = {}
   ): Promise<string> {
-    const response = await this.client.get<string>(buildConsolePath(fullName, buildNumber), {
-      ...config,
-      headers: {
-        Accept: 'text/plain',
-        ...(config.headers ?? {}),
-      },
-    });
+    const response = await this.client.get<string>(
+      buildConsolePath(fullName, buildNumber),
+      withAcceptHeader(config, 'text/plain')
+    );
     return response.data;
   }
 
@@ -79,7 +77,7 @@ export class BuildsApi {
       '/api/json?tree=jobs[fullName,lastBuild[number,url,building,timestamp,duration]]',
       config
     );
-    const jobs = response.data.jobs || [];
+    const jobs = unwrapList(response.data.jobs);
 
     const runningBuilds: JenkinsBuild[] = [];
     for (const job of jobs) {
@@ -107,12 +105,7 @@ export class BuildsApi {
     buildNumber: number,
     config: AxiosRequestConfig = {}
   ): Promise<void> {
-    const requestConfig = await this.applyCrumbHeaders(config);
+    const requestConfig = await applyCrumbHeaders(config, this.addCrumbHeaders);
     await this.client.post(stopBuildPath(fullName, buildNumber), {}, requestConfig);
-  }
-
-  private async applyCrumbHeaders(config: AxiosRequestConfig): Promise<AxiosRequestConfig> {
-    if (!this.addCrumbHeaders) return config;
-    return await this.addCrumbHeaders(config);
   }
 }

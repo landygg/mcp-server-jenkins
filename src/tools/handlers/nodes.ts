@@ -1,4 +1,6 @@
 import type { JenkinsClient } from '../../client/jenkins.js';
+import type { JenkinsNode } from '../../types/jenkins.js';
+import { assertNonEmptyString } from '../../utils/validation.js';
 
 /**
  * Node-related tool handlers.
@@ -13,9 +15,9 @@ export interface GetNodeArgs {
 /**
  * Fetch all Jenkins nodes.
  * @param {JenkinsClient} client - Jenkins API client.
- * @returns {Promise<unknown[]>} List of Jenkins nodes.
+ * @returns {Promise<JenkinsNode[]>} List of Jenkins nodes.
  */
-export async function handleGetAllNodes(client: JenkinsClient): Promise<unknown[]> {
+export async function handleGetAllNodes(client: JenkinsClient): Promise<JenkinsNode[]> {
   return await client.getAllNodes();
 }
 
@@ -23,9 +25,12 @@ export async function handleGetAllNodes(client: JenkinsClient): Promise<unknown[
  * Fetch a specific Jenkins node by name.
  * @param {JenkinsClient} client - Jenkins API client.
  * @param {GetNodeArgs} args - Tool arguments.
- * @returns {Promise<unknown>} Node details.
+ * @returns {Promise<JenkinsNode>} Node details.
  */
-export async function handleGetNode(client: JenkinsClient, args: GetNodeArgs): Promise<unknown> {
+export async function handleGetNode(
+  client: JenkinsClient,
+  args: GetNodeArgs
+): Promise<JenkinsNode> {
   assertNonEmptyString(args?.nodeName, 'nodeName');
   return await client.getNode(args.nodeName);
 }
@@ -42,10 +47,4 @@ export async function handleGetNodeConfig(
 ): Promise<string> {
   assertNonEmptyString(args?.nodeName, 'nodeName');
   return await client.getNodeConfig(args.nodeName);
-}
-
-function assertNonEmptyString(value: unknown, label: string): void {
-  if (typeof value !== 'string' || value.trim() === '') {
-    throw new Error(`${label} is required and must be a non-empty string`);
-  }
 }

@@ -20,7 +20,6 @@ async function main(): Promise<void> {
     const message = error instanceof Error ? error.message : 'Unknown configuration error';
     logger.error('Configuration error', { message });
     process.exit(1);
-    return;
   }
 
   let client: JenkinsClient;
@@ -30,7 +29,6 @@ async function main(): Promise<void> {
     const message = error instanceof Error ? error.message : 'Unknown Jenkins client error';
     logger.error('Failed to initialize Jenkins client', { message });
     process.exit(1);
-    return;
   }
 
   try {
@@ -43,7 +41,6 @@ async function main(): Promise<void> {
     const message = error instanceof Error ? error.message : 'Unknown startup error';
     logger.error('Fatal error during startup', { message });
     process.exit(1);
-    return;
   }
 }
 
