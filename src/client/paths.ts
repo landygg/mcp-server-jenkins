@@ -74,7 +74,7 @@ export function jobConfigPath(fullName: string): string {
  * @param {boolean} [withParameters] - Whether to use buildWithParameters endpoint.
  * @returns {string} Build trigger path.
  */
-export function buildTriggerPath(fullName: string, withParameters = false): string {
+export function buildTriggerPath(fullName: string, withParameters: boolean = false): string {
   return withParameters ? `${jobPath(fullName)}/buildWithParameters` : `${jobPath(fullName)}/build`;
 }
 
