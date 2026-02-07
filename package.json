@@ -1,6 +1,6 @@
 {
   "name": "mcp-server-jenkins",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Model Context Protocol server for Jenkins CI/CD integration",
   "main": "dist/index.js",
   "type": "module",
