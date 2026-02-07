@@ -1,6 +1,6 @@
 {
   "name": "mcp-server-jenkins",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Model Context Protocol server for Jenkins CI/CD integration",
   "author": "landygg",
   "license": "MIT",
@@ -51,5 +51,4 @@
     "bun": ">=1.0.0"
   },
   "packageManager": "npm@10.0.0"
-  
 }
