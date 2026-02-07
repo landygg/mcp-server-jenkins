@@ -189,6 +189,80 @@ Include:
 - Expected behavior
 - Why this would be useful
 
+## Releases
+
+This project uses automated releases powered by [Release Please](https://github.com/googleapis/release-please).
+
+### How It Works
+
+1. **Commit with Conventional Commits**: When you merge PRs with properly formatted commit messages, Release Please automatically:
+   - Analyzes commits since the last release
+   - Determines the next version number based on semantic versioning
+   - Updates CHANGELOG.md with categorized changes
+   - Creates/updates a Release PR
+
+2. **Review the Release PR**: A bot will create or update a "chore(main): release X.X.X" pull request that includes:
+   - Updated version in `package.json`
+   - Updated version in `extension.toml`
+   - Updated `CHANGELOG.md` with all changes since last release
+
+3. **Merge to Release**: When the Release PR is merged:
+   - A GitHub Release is created automatically
+   - The release is tagged
+   - If `NPM_TOKEN` is configured, the package is published to npm
+
+### Version Bumping Rules
+
+Release Please determines version bumps based on commit prefixes:
+
+- `fix:` → Patch release (0.0.x)
+- `feat:` → Minor release (0.x.0)
+- `feat!:` or `BREAKING CHANGE:` → Major release (x.0.0)
+- `docs:`, `chore:`, etc. → Included in release notes but don't trigger releases alone
+
+### Commit Message Examples
+
+**Feature (minor version bump):**
+```bash
+feat: add support for Jenkins folder operations
+```
+
+**Bug fix (patch version bump):**
+```bash
+fix: resolve timeout issue when fetching large console logs
+```
+
+**Breaking change (major version bump):**
+```bash
+feat!: change tool parameter format for consistency
+
+BREAKING CHANGE: The `job_name` parameter has been renamed to `jobName` for consistency with other tools.
+```
+
+**Multiple changes in one commit:**
+```bash
+feat: add queue management tools
+
+This commit adds several new tools for managing the Jenkins queue.
+
+fix(client): improve error handling for network timeouts
+feat(queue): add ability to cancel queued items
+```
+
+### Force a Specific Version
+
+To release a specific version (bypass automatic versioning):
+
+```bash
+git commit --allow-empty -m "chore: release 2.0.0" -m "Release-As: 2.0.0"
+```
+
+### Checking Release Status
+
+- **Pending Release PR**: Look for PRs labeled `autorelease: pending`
+- **Released**: Check the [Releases page](https://github.com/landygg/mcp-server-jenkins/releases)
+- **CHANGELOG**: View [CHANGELOG.md](CHANGELOG.md) for version history
+
 ## Questions?
 
 - Open an issue for questions
