@@ -1,6 +1,3 @@
-import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
-import http from 'http';
-import https from 'https';
 import type {
   JenkinsBuild,
   JenkinsConfig,
@@ -8,339 +5,146 @@ import type {
   JenkinsNode,
   JenkinsQueueItem,
 } from '../types/jenkins.js';
+import { BuildsApi } from './apis/builds-api.js';
+import { ItemsApi } from './apis/items-api.js';
+import { NodesApi } from './apis/nodes-api.js';
+import { QueueApi } from './apis/queue-api.js';
+import { type CrumbIssuer, createCrumbIssuer } from './crumb-issuer.js';
+import { JenkinsHttpClient } from './http-client.js';
 
 /**
  * Jenkins API Client
- * Handles all communication with Jenkins server
+ * Coordinates HTTP client, CSRF crumb handling, and API modules.
+ *
+ * Target runtime: Node.js (ESM).
+ * Async pattern: async/await.
  */
 export class JenkinsClient {
-  private client: AxiosInstance;
-  private crumbCache: { crumb: string; field: string } | null | undefined = undefined;
+  private readonly httpClient: JenkinsHttpClient;
+  private readonly crumbIssuer: CrumbIssuer;
+  private readonly itemsApi: ItemsApi;
+  private readonly buildsApi: BuildsApi;
+  private readonly nodesApi: NodesApi;
+  private readonly queueApi: QueueApi;
 
   constructor(config: JenkinsConfig) {
-    const axiosConfig: AxiosRequestConfig = {
-      baseURL: config.url,
-      timeout: (config.timeout || 5) * 1000, // Convert seconds to milliseconds
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      // Enable connection pooling with keep-alive
-      httpAgent: new http.Agent({
-        keepAlive: true,
-        maxSockets: 10,
-      }),
-      httpsAgent: new https.Agent({
-        keepAlive: true,
-        maxSockets: 10,
-        rejectUnauthorized: config.verifySSL !== false,
-      }),
-    };
+    this.httpClient = new JenkinsHttpClient(config);
+    this.crumbIssuer = createCrumbIssuer(this.httpClient.getAxiosInstance());
 
-    // Add authentication if provided
-    if (config.username && config.password) {
-      axiosConfig.auth = {
-        username: config.username,
-        password: config.password,
-      };
-    }
+    const addCrumbHeaders = (cfg = {}) => this.crumbIssuer.addCrumbHeaders(cfg);
 
-    // Override HTTPS agent if SSL verification is disabled
-    // Security Note: SSL verification can be disabled for development or self-signed certificates
-    // This is opt-in via JENKINS_VERIFY_SSL=false and defaults to true (secure)
-    if (config.verifySSL === false) {
-      axiosConfig.httpsAgent = new https.Agent({
-        keepAlive: true,
-        maxSockets: 10,
-        rejectUnauthorized: false,
-      });
-    }
-
-    this.client = axios.create(axiosConfig);
+    this.itemsApi = new ItemsApi(this.httpClient, { addCrumbHeaders });
+    this.buildsApi = new BuildsApi(this.httpClient, { addCrumbHeaders });
+    this.nodesApi = new NodesApi(this.httpClient);
+    this.queueApi = new QueueApi(this.httpClient, { addCrumbHeaders });
   }
 
   /**
-   * Get Jenkins crumb for CSRF protection
-   * Caches the crumb to avoid repeated requests
-   */
-  private async getCrumb(): Promise<{ crumb: string; field: string } | null> {
-    // Return cached result if already fetched (either valid crumb or null for "not available")
-    if (this.crumbCache !== undefined) {
-      return this.crumbCache;
-    }
-
-    try {
-      const response = await this.client.get('/crumbIssuer/api/json');
-      this.crumbCache = {
-        crumb: response.data.crumb,
-        field: response.data.crumbRequestField,
-      };
-      return this.crumbCache;
-    } catch (error) {
-      // If crumb endpoint doesn't exist, Jenkins may not have CSRF protection enabled
-      // Cache null as sentinel value to avoid repeated failed requests
-      this.crumbCache = null;
-
-      // Log sanitized error to avoid leaking credentials
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-        const statusText = error.response?.statusText;
-        const code = error.code;
-        console.error('Failed to fetch Jenkins crumb (CSRF may not be enabled):', {
-          status,
-          statusText,
-          code,
-          message: error.message,
-        });
-      } else {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error('Failed to fetch Jenkins crumb (CSRF may not be enabled):', {
-          message,
-        });
-      }
-      return null;
-    }
-  }
-
-  /**
-   * Add crumb header to request config if available
-   */
-  private async addCrumbHeaders(config: AxiosRequestConfig = {}): Promise<AxiosRequestConfig> {
-    const crumb = await this.getCrumb();
-    if (crumb) {
-      return {
-        ...config,
-        headers: {
-          ...config.headers,
-          [crumb.field]: crumb.crumb,
-        },
-      };
-    }
-    return config;
-  }
-
-  /**
-   * Get all items (jobs and folders) from Jenkins
+   * Get all items (jobs and folders) from Jenkins.
    */
   async getAllItems(): Promise<JenkinsItem[]> {
-    const response = await this.client.get(
-      '/api/json?tree=jobs[name,url,color,_class,fullName,buildable]'
-    );
-    return response.data.jobs || [];
+    return await this.itemsApi.getAllItems();
   }
 
   /**
-   * Get specific item by name
+   * Get specific item by name.
    */
   async getItem(fullName: string): Promise<JenkinsItem> {
-    const response = await this.client.get(
-      `/job/${this.encodeJobName(fullName)}/api/json?tree=name,url,color,_class,fullName,buildable,builds[number,url,result,building,timestamp,duration],lastBuild[number,url,result],lastSuccessfulBuild[number,url,result],lastFailedBuild[number,url,result]`
-    );
-    return response.data;
+    return await this.itemsApi.getItem(fullName);
   }
 
   /**
-   * Get item configuration XML
+   * Get item configuration XML.
    */
   async getItemConfig(fullName: string): Promise<string> {
-    const response = await this.client.get(`/job/${this.encodeJobName(fullName)}/config.xml`, {
-      headers: { Accept: 'application/xml' },
-    });
-    return response.data;
+    return await this.itemsApi.getItemConfig(fullName);
   }
 
   /**
-   * Query items with filters
+   * Query items with filters.
    */
   async queryItems(params: {
     classPattern?: string;
     fullNamePattern?: string;
     colorPattern?: string;
   }): Promise<JenkinsItem[]> {
-    // Pre-compile regexes to validate and provide clear errors
-    let classRegex: RegExp | null = null;
-    let fullNameRegex: RegExp | null = null;
-    let colorRegex: RegExp | null = null;
-
-    try {
-      if (params.classPattern) {
-        classRegex = new RegExp(params.classPattern);
-      }
-      if (params.fullNamePattern) {
-        fullNameRegex = new RegExp(params.fullNamePattern);
-      }
-      if (params.colorPattern) {
-        colorRegex = new RegExp(params.colorPattern);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Invalid regex pattern';
-      throw new Error(`Invalid regex pattern: ${message}`);
-    }
-
-    const allItems = await this.getAllItems();
-
-    return allItems.filter((item) => {
-      if (classRegex && !classRegex.test(item._class)) {
-        return false;
-      }
-      if (fullNameRegex && !fullNameRegex.test(item.fullName)) {
-        return false;
-      }
-      if (colorRegex) {
-        if (!item.color) {
-          return false;
-        }
-        if (!colorRegex.test(item.color)) {
-          return false;
-        }
-      }
-      return true;
-    });
+    return await this.itemsApi.queryItems(params);
   }
 
   /**
-   * Build an item
+   * Build an item.
    */
   async buildItem(fullName: string, parameters?: Record<string, string>): Promise<number> {
-    const endpoint = parameters
-      ? `/job/${this.encodeJobName(fullName)}/buildWithParameters`
-      : `/job/${this.encodeJobName(fullName)}/build`;
-
-    const config = await this.addCrumbHeaders({
-      params: parameters,
-    });
-
-    const response = await this.client.post(endpoint, parameters || {}, config);
-
-    // Jenkins returns the queue item location in the Location header
-    const location = response.headers.location;
-
-    if (!location) {
-      throw new Error(
-        'Jenkins did not return a queue location (Location header missing) for build request.'
-      );
-    }
-
-    const idSegment = location.split('/').slice(-2, -1)[0];
-    const queueId = Number.parseInt(idSegment, 10);
-
-    if (Number.isNaN(queueId) || !Number.isInteger(queueId) || queueId < 0) {
-      throw new Error(`Jenkins returned an invalid queue id in Location header: "${location}".`);
-    }
-
-    return queueId;
+    return await this.itemsApi.buildItem(fullName, parameters);
   }
 
   /**
-   * Get all nodes
+   * Get all nodes.
    */
   async getAllNodes(): Promise<JenkinsNode[]> {
-    const response = await this.client.get(
-      '/computer/api/json?tree=computer[displayName,description,numExecutors,offline,temporarilyOffline]'
-    );
-    return response.data.computer || [];
+    return await this.nodesApi.getAllNodes();
   }
 
   /**
-   * Get specific node
+   * Get specific node.
    */
   async getNode(nodeName: string): Promise<JenkinsNode> {
-    const response = await this.client.get(`/computer/${encodeURIComponent(nodeName)}/api/json`);
-    return response.data;
+    return await this.nodesApi.getNode(nodeName);
   }
 
   /**
-   * Get node configuration
+   * Get node configuration.
    */
   async getNodeConfig(nodeName: string): Promise<string> {
-    const response = await this.client.get(`/computer/${encodeURIComponent(nodeName)}/config.xml`, {
-      headers: { Accept: 'application/xml' },
-    });
-    return response.data;
+    return await this.nodesApi.getNodeConfig(nodeName);
   }
 
   /**
-   * Get all queue items
+   * Get all queue items.
    */
   async getAllQueueItems(): Promise<JenkinsQueueItem[]> {
-    const response = await this.client.get(
-      '/queue/api/json?tree=items[id,task[name,url],why,blocked,buildable,stuck]'
-    );
-    return response.data.items || [];
+    return await this.queueApi.getAllQueueItems();
   }
 
   /**
-   * Get specific queue item
+   * Get specific queue item.
    */
   async getQueueItem(queueId: number): Promise<JenkinsQueueItem> {
-    const response = await this.client.get(`/queue/item/${queueId}/api/json`);
-    return response.data;
+    return await this.queueApi.getQueueItem(queueId);
   }
 
   /**
-   * Cancel queue item
+   * Cancel queue item.
    */
   async cancelQueueItem(queueId: number): Promise<void> {
-    const config = await this.addCrumbHeaders();
-    await this.client.post(`/queue/cancelItem?id=${queueId}`, {}, config);
+    await this.queueApi.cancelQueueItem(queueId);
   }
 
   /**
-   * Get specific build
+   * Get specific build.
    */
   async getBuild(fullName: string, buildNumber: number): Promise<JenkinsBuild> {
-    const response = await this.client.get(
-      `/job/${this.encodeJobName(fullName)}/${buildNumber}/api/json`
-    );
-    return response.data;
+    return await this.buildsApi.getBuild(fullName, buildNumber);
   }
 
   /**
-   * Get build console output
+   * Get build console output.
    */
   async getBuildConsoleOutput(fullName: string, buildNumber: number): Promise<string> {
-    const response = await this.client.get(
-      `/job/${this.encodeJobName(fullName)}/${buildNumber}/consoleText`,
-      { headers: { Accept: 'text/plain' } }
-    );
-    return response.data;
+    return await this.buildsApi.getBuildConsoleOutput(fullName, buildNumber);
   }
 
   /**
-   * Get all running builds
-   * Optimized to query only lastBuild for efficiency
+   * Get all running builds.
    */
   async getRunningBuilds(): Promise<JenkinsBuild[]> {
-    const response = await this.client.get(
-      '/api/json?tree=jobs[fullName,lastBuild[number,url,building,timestamp,duration]]'
-    );
-    const jobs = response.data.jobs || [];
-
-    const runningBuilds: JenkinsBuild[] = [];
-    for (const job of jobs) {
-      const lastBuild = job.lastBuild;
-      if (lastBuild?.building) {
-        runningBuilds.push({
-          ...lastBuild,
-          fullDisplayName: `${job.fullName} #${lastBuild.number}`,
-        });
-      }
-    }
-
-    return runningBuilds;
+    return await this.buildsApi.getRunningBuilds();
   }
 
   /**
-   * Stop a build
+   * Stop a build.
    */
   async stopBuild(fullName: string, buildNumber: number): Promise<void> {
-    const config = await this.addCrumbHeaders();
-    await this.client.post(`/job/${this.encodeJobName(fullName)}/${buildNumber}/stop`, {}, config);
-  }
-
-  /**
-   * Encode job name for URL (handles folder structure)
-   */
-  private encodeJobName(fullName: string): string {
-    return fullName.split('/').map(encodeURIComponent).join('/job/');
+    await this.buildsApi.stopBuild(fullName, buildNumber);
   }
 }
